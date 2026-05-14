@@ -1,6 +1,6 @@
 # 🎻 Violin
 
-**Open-source Video Translation Tool.**
+**Open-source Video Translation Skill.**
 
 [🌐 Live demo](https://violin-ai.com) · [📝 Blog post](https://www.together.ai/blog/violin-open-source-translation-skill) · [📜 MIT License](https://github.com/shang-zhu/violin/blob/main/LICENSE)
 
