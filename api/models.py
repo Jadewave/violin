@@ -32,6 +32,7 @@ class JobResponse(BaseModel):
     style: str = "standard"
     progress: list[ProgressEvent] = Field(default_factory=list)
     error: str | None = None
+    queue_position: int = 0    # 0 unless this job is queued; otherwise # of older queued/running jobs ahead
 
 
 class CreateJobRequest(BaseModel):

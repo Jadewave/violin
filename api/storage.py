@@ -68,11 +68,47 @@ def create_job(job_id: str, params: dict[str, Any]) -> None:
     meta = {
         "id": job_id,
         "status": JobStatus.queued,
+        "created_at": int(time.time()),
         **params,
         "error": None,
     }
     _atomic_write(_meta_path(job_id), json.dumps(meta))
     _progress_path(job_id).write_text("", encoding="utf-8")
+
+
+def _queue_position(job_id: str, meta: dict) -> int:
+    """Count other jobs (queued + running) created before this one.
+
+    Returns 0 unless the target job itself is queued — running/done/failed/
+    cancelled jobs aren't waiting in line anymore. Legacy jobs missing
+    ``created_at`` also return 0 (can't compute reliably).
+    """
+    if meta.get("status") != JobStatus.queued:
+        return 0
+    my_created = meta.get("created_at", 0)
+    if not my_created:
+        return 0
+
+    ahead = 0
+    try:
+        for entry in JOBS_DIR.iterdir():
+            if not entry.is_dir() or entry.name == job_id:
+                continue
+            other_meta_path = entry / "meta.json"
+            if not other_meta_path.exists():
+                continue
+            try:
+                other = json.loads(other_meta_path.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError):
+                continue
+            if other.get("status") not in ("queued", "running"):
+                continue
+            other_created = other.get("created_at", 0)
+            if other_created and other_created < my_created:
+                ahead += 1
+    except OSError:
+        pass
+    return ahead
 
 
 def update_status(job_id: str, status: JobStatus, error: str | None = None) -> None:
@@ -124,6 +160,7 @@ def get_job(job_id: str) -> JobResponse | None:
         subtitles=meta["subtitles"],
         progress=progress,
         error=meta.get("error"),
+        queue_position=_queue_position(job_id, meta),
     )
 
 
