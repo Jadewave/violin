@@ -667,8 +667,22 @@
           </div>
         </div>
 
-        <!-- Pipeline steps -->
-        <div class="space-y-3 mb-6">
+        <!-- Queue notice (shown when this job hasn't started processing yet) -->
+        <template x-if="queuePosition > 0">
+          <div class="mb-6 rounded-xl bg-gold-50/60 border border-gold-200 px-4 py-3.5 text-sm">
+            <p class="font-semibold text-ink-800">
+              You're in queue —
+              <span class="text-gold-500" x-text="queuePosition"></span>
+              <span x-text="queuePosition === 1 ? 'job' : 'jobs'"></span> ahead of you.
+            </p>
+            <p class="mt-1 text-xs text-ink-500">
+              We'll start your translation as soon as it's your turn. Feel free to keep this tab open or come back later — your job is saved. Thanks for your patience!
+            </p>
+          </div>
+        </template>
+
+        <!-- Pipeline steps (hidden while queued so we don't show fake progress) -->
+        <div class="space-y-3 mb-6" x-show="queuePosition === 0">
           <template x-for="(step, idx) in pipelineSteps" :key="idx">
             <div class="flex items-center gap-3">
               <div class="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300"
@@ -1072,6 +1086,7 @@ function app() {
     // job
     jobId: null,
     jobStatus: null,
+    queuePosition: 0,                  // # of older queued/running jobs ahead of mine; 0 means processing has started
     progress: [],
     errorMessage: '',
     segments: [],
@@ -1441,6 +1456,7 @@ function app() {
         const job = await res.json();
         this.progress = job.progress || [];
         this.jobStatus = job.status;
+        this.queuePosition = job.queue_position || 0;
 
         if (job.status === 'done') {
           this.phase = 'done';

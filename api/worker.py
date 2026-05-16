@@ -132,7 +132,7 @@ def _run_job(
                 "id": job_id,
                 "created_at": started_at,
                 "finished_at": finished_at,
-                "status": str(final_status),
+                "status": final_status.value,
                 "target_language": target_language,
                 "source_language": source_language,
                 "style": style.name,

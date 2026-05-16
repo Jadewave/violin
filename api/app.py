@@ -107,3 +107,35 @@ async def _start_cleanup_loop():
                 logger.exception("Job cleanup failed")
 
     asyncio.create_task(_cleanup_loop())
+
+
+@app.on_event("startup")
+async def _start_tmp_cleanup_loop():
+    """Periodically remove orphan temp dirs left behind by crashed jobs.
+
+    The startup hook in run_api.py only catches orphans at container boot.
+    Under sustained traffic, jobs crash continuously (rate-limit, OOM,
+    container memory pressure) and their /tmp dirs accumulate between deploys.
+    Scan every 30 min and delete dirs > 1 h old (normal pipeline never lasts
+    that long; anything older is definitely orphaned).
+    """
+    import glob, os, shutil, tempfile, time as _time
+
+    async def _loop():
+        while True:
+            await asyncio.sleep(1800)   # every 30 min
+            tmp = tempfile.gettempdir()
+            removed = 0
+            cutoff = _time.time() - 3600
+            for prefix in ("audiochunk_", "vidmerge_", "vidtrans_"):
+                for path in glob.glob(f"{tmp}/{prefix}*"):
+                    try:
+                        if os.path.getmtime(path) < cutoff:
+                            shutil.rmtree(path, ignore_errors=True)
+                            removed += 1
+                    except OSError:
+                        pass
+            if removed:
+                logger.info("Cleaned %d stale temp dir(s) from %s/", removed, tmp)
+
+    asyncio.create_task(_loop())
