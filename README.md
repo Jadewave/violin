@@ -91,6 +91,12 @@ After this, `violin` / `violin-api` run from your local checkout — edit any fi
 
 ---
 
+## 📝 To Do List
+- [-] support voice cloning.
+- [-] lip sync generation.
+
+---
+
 ## 🎬 How Violin works
 
 ```
