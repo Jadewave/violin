@@ -152,6 +152,7 @@ def _run_job(
                 "total_cost_usd": cb["total"],
                 "duration_seconds": finished_at - started_at,
                 "error": error_msg,
+                "using_own_key": 1 if params.get("using_own_key") else 0,
             })
         except Exception:
             import logging

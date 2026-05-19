@@ -2,10 +2,13 @@
 
 Records one row per finished job (done or failed) with metadata, usage and
 cost estimates. Local-only — exposed through `/admin` which the Caddy front
-explicitly blocks for external traffic, so the DB stays private.
+explicitly blocks for external traffic, so the DB stays private to each
+operator's deployment.
 
 Data captured is non-identifying: target language, model providers, token
-counts, dollar cost, timestamps. No video content, no user IPs, no API keys.
+counts, dollar cost, timestamps, and a 1-bit ``using_own_key`` flag noting
+whether the request supplied its own API key vs used the server's. No video
+content, no user IPs, no API keys themselves.
 """
 
 from __future__ import annotations
@@ -49,7 +52,8 @@ CREATE TABLE IF NOT EXISTS jobs (
     tts_cost_usd             REAL,
     total_cost_usd           REAL,
     duration_seconds         REAL,
-    error                    TEXT
+    error                    TEXT,
+    using_own_key            INTEGER     -- 1=BYOK, 0=server's free-trial key, NULL=legacy pre-tracking row
 );
 CREATE INDEX IF NOT EXISTS idx_jobs_created_at ON jobs(created_at);
 CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
@@ -70,9 +74,21 @@ def _connect() -> Iterator[sqlite3.Connection]:
 
 
 def init_db() -> None:
-    """Create the table + indexes if they don't exist."""
+    """Create the table + indexes if they don't exist.
+
+    Also migrates older DBs by adding any columns introduced after first
+    deploy — SQLite's ``ALTER TABLE ADD COLUMN`` is idempotent if wrapped in
+    a try/except for ``OperationalError`` (raised when the column exists).
+    """
     with _lock, _connect() as conn:
         conn.executescript(_SCHEMA)
+        for migration in (
+            "ALTER TABLE jobs ADD COLUMN using_own_key INTEGER",
+        ):
+            try:
+                conn.execute(migration)
+            except sqlite3.OperationalError:
+                pass  # column already present — first-run idempotency
 
 
 def record_job(row: dict[str, Any]) -> None:
