@@ -80,6 +80,7 @@ async def create_translation_job(
         "subtitles": subtitles,
         "style": style,
         "voiceover": voiceover,
+        "using_own_key": using_own_key,
     }
 
     create_job(job_id, params)
@@ -168,6 +169,7 @@ async def create_job_from_url(request: Request, body: UrlJobRequest):
         "subtitles": body.subtitles,
         "style": body.style,
         "voiceover": body.voiceover,
+        "using_own_key": using_own_key,
     }
 
     create_job(job_id, params)
